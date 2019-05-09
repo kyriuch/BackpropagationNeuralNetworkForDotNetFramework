@@ -39,8 +39,8 @@ namespace BackpropagationNeuralNetwork
 		public double Momentum;
 	}
 
-    public class Network
-    {
+	public class Network
+	{
 		private Layers layers;
 		private NetworkData networkData;
 		private NetworkConfiguration networkConfiguration;
@@ -55,5 +55,5 @@ namespace BackpropagationNeuralNetwork
 			layers = new Layers(networkConfiguration);
 			this.networkConfiguration = networkConfiguration;
 		}
-    }
+	}
 }

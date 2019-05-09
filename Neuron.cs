@@ -45,7 +45,7 @@ namespace BackpropagationNeuralNetwork
 		internal Neuron() // input layer neuron constructor
 		{
 			initializeNeuronData(true);
-			
+
 		}
 
 		internal Neuron(List<Neuron> attachedNeurons) // hidden/output layer neuron constructor
@@ -74,7 +74,7 @@ namespace BackpropagationNeuralNetwork
 			neuronData = new NeuronData();
 			IdHelper.GetNextId(ref neuronData.Id);
 
-			if(!isInputLayerNeuron)
+			if (!isInputLayerNeuron)
 			{
 				neuronData.BiasWeight = RandomHelper.GetRandomMinusOneToOne();
 				neuronData.BiasDiff = 0d;
@@ -87,7 +87,7 @@ namespace BackpropagationNeuralNetwork
 			weights = new Dictionary<int, double>(attachedNeurons.Count);
 			weightsDifferences = new Dictionary<int, double>(attachedNeurons.Count);
 
-			foreach(Neuron neuron in attachedNeurons)
+			foreach (Neuron neuron in attachedNeurons)
 			{
 				leftSideNeurons.Add(neuron.getNeuronId(), neuron);
 				weights.Add(neuron.getNeuronId(), RandomHelper.GetRandomMinusOneToOne());

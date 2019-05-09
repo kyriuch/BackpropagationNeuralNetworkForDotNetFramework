@@ -11,7 +11,7 @@ namespace BackpropagationNeuralNetwork
 		{
 			neuronsList = new List<Neuron>(neuronsCount);
 
-			for(int i = 0; i < neuronsCount; i++)
+			for (int i = 0; i < neuronsCount; i++)
 			{
 				neuronsList.Add(new Neuron());
 			}
