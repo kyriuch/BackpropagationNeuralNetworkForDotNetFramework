@@ -5,7 +5,7 @@ namespace BackpropagationNeuralNetwork
 {
 	internal class Layer
 	{
-		private List<Neuron> neuronsList;
+		private readonly List<Neuron> neuronsList;
 
 		internal Layer(int neuronsCount)
 		{

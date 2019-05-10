@@ -7,9 +7,9 @@ namespace BackpropagationNeuralNetwork
 {
 	internal class Layers
 	{
-		private Layer inputLayer;
-		private Layer hiddenLayer;
-		private Layer outputLayer;
+		private readonly Layer inputLayer;
+		private readonly Layer hiddenLayer;
+		private readonly Layer outputLayer;
 
 		internal Layers(NetworkConfiguration networkConfiguration)
 		{
@@ -29,7 +29,7 @@ namespace BackpropagationNeuralNetwork
 		public List<List<double>> ExpectedOutputs;
 		public Dictionary<int, List<double>> ActualOutputs;
 
-		public double overallError;
+		public double OverallError;
 	}
 
 	internal struct NetworkConfiguration
@@ -60,6 +60,11 @@ namespace BackpropagationNeuralNetwork
 		private NetworkData networkData;
 		private NetworkConfiguration networkConfiguration;
 
+		internal Network(NetworkConfiguration networkConfiguration)
+		{
+			initializeNetwork(networkConfiguration);
+		}
+		
 		public void AddLearningPair(List<double> inputs, List<double> expectedOutputs)
 		{
 			if (inputs.Count != layers.getInputLayer().getNeurons().Count)
@@ -119,13 +124,13 @@ namespace BackpropagationNeuralNetwork
 				SingleEraEnded?.Invoke(new SingleEraData()
 				{
 					CurrentEra = era,
-					OverallError = networkData.overallError,
+					OverallError = networkData.OverallError,
 					LearnProgress = (era + 1d) / networkConfiguration.MaxEras,
-					PercentOfError = (networkConfiguration.MinError / networkData.overallError * 100)
+					PercentOfError = (networkConfiguration.MinError / networkData.OverallError * 100)
 				});
 
 				era++;
-			} while (era < networkConfiguration.MaxEras && networkData.overallError > networkConfiguration.MinError);
+			} while (era < networkConfiguration.MaxEras && networkData.OverallError > networkConfiguration.MinError);
 		}
 
 		public List<double> GetResultForInputs(List<double> inputs)
@@ -148,22 +153,21 @@ namespace BackpropagationNeuralNetwork
 
 			return outputs;
 		}
-
-		internal Network(NetworkConfiguration networkConfiguration)
-		{
-			initializeNetwork(networkConfiguration);
-		}
-
+		
 		private void initializeNetwork(NetworkConfiguration networkConfiguration)
 		{
 			layers = new Layers(networkConfiguration);
 			this.networkConfiguration = networkConfiguration;
-			networkData.Inputs = new List<List<double>>();
-			networkData.ExpectedOutputs = new List<List<double>>();
-			networkData.ActualOutputs = new Dictionary<int, List<double>>();
+
+			networkData = new NetworkData
+			{
+				Inputs = new List<List<double>>(),
+				ExpectedOutputs = new List<List<double>>(),
+				ActualOutputs = new Dictionary<int, List<double>>()
+			};
 		}
 
-		internal void sumWeightsAndActivate()
+		private void sumWeightsAndActivate()
 		{
 			layers.getHiddenLayer().sumWeights();
 			layers.getHiddenLayer().activate();
@@ -171,7 +175,7 @@ namespace BackpropagationNeuralNetwork
 			layers.getOutputLayer().activate();
 		}
 
-		internal void calculateSignalErrors(List<double> expectedOutput)
+		private void calculateSignalErrors(List<double> expectedOutput)
 		{
 			int k = 0;
 
@@ -189,7 +193,7 @@ namespace BackpropagationNeuralNetwork
 			}
 		}
 
-		internal void updateWeights()
+		private void updateWeights()
 		{
 			foreach(Neuron neuron in layers.getOutputLayer().getNeurons())
 			{
@@ -224,13 +228,13 @@ namespace BackpropagationNeuralNetwork
 
 		private void updateOverallError()
 		{
-			networkData.overallError = 0;
+			networkData.OverallError = 0;
 
 			for(int i = 0; i < networkData.ExpectedOutputs.Count; i++)
 			{
 				for(int j = 0; j < networkData.ActualOutputs[i].Count; j++)
 				{
-					networkData.overallError += 0.5 * (networkData.ExpectedOutputs[i][j] - networkData.ActualOutputs[i][j] *
+					networkData.OverallError += 0.5 * (networkData.ExpectedOutputs[i][j] - networkData.ActualOutputs[i][j] *
 						networkData.ExpectedOutputs[i][j] - networkData.ActualOutputs[i][j]);
 				}
 			}

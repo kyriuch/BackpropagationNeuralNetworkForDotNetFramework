@@ -17,7 +17,7 @@ namespace BackpropagationNeuralNetwork
 
 	internal static class RandomHelper
 	{
-		private static Random random = new Random();
+		private static readonly Random random = new Random();
 
 		public static double GetRandomMinusOneToOne()
 		{
@@ -52,13 +52,13 @@ namespace BackpropagationNeuralNetwork
 			initializeNeuronData(true);
 		}
 
-		internal Neuron(List<Neuron> attachedNeurons) // hidden/output layer neuron constructor
+		internal Neuron(IReadOnlyCollection<Neuron> attachedNeurons) // hidden/output layer neuron constructor
 		{
 			initializeNeuronData(false);
 			initializeDictionaries(attachedNeurons);
 		}
 
-		internal int getNeuronId() => neuronData.Id;
+		private int getNeuronId() => neuronData.Id;
 
 		internal void activate() => neuronData.Output = 1d / (1d + Math.Exp(neuronData.Output));
 
@@ -70,14 +70,14 @@ namespace BackpropagationNeuralNetwork
 			neuronData = new NeuronData();
 			IdHelper.GetNextId(ref neuronData.Id);
 
-			if (!isInputLayerNeuron)
-			{
-				neuronData.BiasWeight = RandomHelper.GetRandomMinusOneToOne();
-				neuronData.BiasDiff = 0d;
-			}
+			if (isInputLayerNeuron) 
+				return;
+			
+			neuronData.BiasWeight = RandomHelper.GetRandomMinusOneToOne();
+			neuronData.BiasDiff = 0d;
 		}
 
-		private void initializeDictionaries(List<Neuron> attachedNeurons)
+		private void initializeDictionaries(IReadOnlyCollection<Neuron> attachedNeurons)
 		{
 			leftSideNeurons = new Dictionary<int, Neuron>(attachedNeurons.Count);
 			weights = new Dictionary<int, double>(attachedNeurons.Count);
