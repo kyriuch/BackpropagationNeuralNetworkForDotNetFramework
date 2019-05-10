@@ -94,9 +94,6 @@ namespace BackpropagationNeuralNetwork
 			return this;
 		}
 
-		public Network Build()
-		{
-			return new Network(networkConfiguration);
-		}
+		public Network Build() => new Network(networkConfiguration);
 	}
 }

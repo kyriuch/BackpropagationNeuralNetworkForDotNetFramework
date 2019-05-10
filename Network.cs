@@ -1,5 +1,7 @@
 ﻿
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BackpropagationNeuralNetwork
 {
@@ -26,6 +28,8 @@ namespace BackpropagationNeuralNetwork
 		public List<List<double>> Inputs;
 		public List<List<double>> ExpectedOutputs;
 		public Dictionary<int, List<double>> ActualOutputs;
+
+		public double overallError;
 	}
 
 	internal struct NetworkConfiguration
@@ -39,11 +43,111 @@ namespace BackpropagationNeuralNetwork
 		public double Momentum;
 	}
 
+	public struct SingleEraData
+	{
+		public double LearnProgress;
+		public int CurrentEra;
+		public double OverallError;
+		public double PercentOfError;
+	}
+
 	public class Network
 	{
+		public delegate void SingleEraEndedCallback(SingleEraData singleEraData);
+		public event SingleEraEndedCallback SingleEraEnded;
+
 		private Layers layers;
 		private NetworkData networkData;
 		private NetworkConfiguration networkConfiguration;
+
+		public void AddLearningPair(List<double> inputs, List<double> expectedOutputs)
+		{
+			if (inputs.Count != layers.getInputLayer().getNeurons().Count)
+				throw new ArgumentException("Learning pair inputs count must match neurons count in input layer.");
+
+			if (expectedOutputs.Count != layers.getOutputLayer().getNeurons().Count)
+				throw new ArgumentException("Learning pair outputs count must match neurons count in output layer.");
+
+			networkData.Inputs.Add(inputs);
+			networkData.ExpectedOutputs.Add(expectedOutputs);
+		}
+
+		public void Learn()
+		{
+			List<int> usedInputs = new List<int>();
+			List<double> currentOutputs = new List<double>();
+
+			int era = 0;
+
+			do
+			{
+				usedInputs.Clear();
+				currentOutputs.Clear();
+
+				for (int i = 0; i < networkData.Inputs.Count; i++)
+				{
+					int currentInput;
+
+					do
+					{
+						currentInput = RandomHelper.GetRandomInRange(0, networkData.Inputs.Count);
+					} while (usedInputs.Contains(currentInput));
+
+					usedInputs.Add(currentInput);
+
+					int k = 0;
+
+					foreach (Neuron neuron in layers.getInputLayer().getNeurons())
+					{
+						neuron.setOutput(networkData.Inputs[currentInput][k++]);
+					}
+
+					sumWeightsAndActivate();
+					calculateSignalErrors(networkData.ExpectedOutputs[currentInput]);
+					updateWeights();
+
+					foreach (Neuron neuron in layers.getOutputLayer().getNeurons())
+					{
+						currentOutputs.Add(neuron.getOutput());
+					}
+
+					networkData.ActualOutputs.Add(currentInput, currentOutputs);
+				}
+
+				updateOverallError();
+
+				SingleEraEnded?.Invoke(new SingleEraData()
+				{
+					CurrentEra = era,
+					OverallError = networkData.overallError,
+					LearnProgress = (era + 1d) / networkConfiguration.MaxEras,
+					PercentOfError = (networkConfiguration.MinError / networkData.overallError * 100)
+				});
+
+				era++;
+			} while (era < networkConfiguration.MaxEras && networkData.overallError > networkConfiguration.MinError);
+		}
+
+		public List<double> GetResultForInputs(List<double> inputs)
+		{
+			List<double> outputs = new List<double>(networkConfiguration.OutputLayerNeurons);
+
+			int k = 0;
+
+			foreach(Neuron neuron in layers.getInputLayer().getNeurons())
+			{
+				neuron.setOutput(inputs[k++]);
+			}
+
+			sumWeightsAndActivate();
+
+			foreach(Neuron neuron in layers.getOutputLayer().getNeurons())
+			{
+				outputs.Add(neuron.getOutput());
+			}
+
+			return outputs;
+		}
 
 		internal Network(NetworkConfiguration networkConfiguration)
 		{
@@ -54,6 +158,82 @@ namespace BackpropagationNeuralNetwork
 		{
 			layers = new Layers(networkConfiguration);
 			this.networkConfiguration = networkConfiguration;
+			networkData.Inputs = new List<List<double>>();
+			networkData.ExpectedOutputs = new List<List<double>>();
+			networkData.ActualOutputs = new Dictionary<int, List<double>>();
+		}
+
+		internal void sumWeightsAndActivate()
+		{
+			layers.getHiddenLayer().sumWeights();
+			layers.getHiddenLayer().activate();
+			layers.getOutputLayer().sumWeights();
+			layers.getOutputLayer().activate();
+		}
+
+		internal void calculateSignalErrors(List<double> expectedOutput)
+		{
+			int k = 0;
+
+			foreach(Neuron neuron in layers.getOutputLayer().getNeurons())
+			{
+				double singleOutput = expectedOutput[k++];
+				neuron.setSignalError((singleOutput - neuron.getOutput()) * neuron.getOutput() * (1 - neuron.getOutput()));
+			}
+
+			foreach(Neuron neuron in layers.getHiddenLayer().getNeurons())
+			{
+				double sum = layers.getOutputLayer().getNeurons().Select(outputNeuron => outputNeuron.getWeight(neuron) * outputNeuron.getSignalError()).Sum();
+
+				neuron.setSignalError(neuron.getOutput() * (1 - neuron.getOutput()) * sum);
+			}
+		}
+
+		internal void updateWeights()
+		{
+			foreach(Neuron neuron in layers.getOutputLayer().getNeurons())
+			{
+				neuron.setBiasDiff(networkConfiguration.LearningRate * neuron.getSignalError() + networkConfiguration.Momentum * neuron.getBiasDiff());
+				neuron.setBiasWeight(neuron.getBiasWeight() + neuron.getBiasDiff());
+
+				foreach(Neuron hiddenNeuron in layers.getHiddenLayer().getNeurons())
+				{
+					neuron.setWeightDiff(hiddenNeuron, networkConfiguration.LearningRate * neuron.getSignalError() * hiddenNeuron.getOutput()
+						+ networkConfiguration.Momentum * neuron.getWeightDiff(hiddenNeuron));
+
+					neuron.setWeight(hiddenNeuron, neuron.getWeight(hiddenNeuron) + neuron.getWeightDiff(hiddenNeuron));
+				}
+			}
+
+			foreach (Neuron neuron in layers.getHiddenLayer().getNeurons())
+			{
+				neuron.setBiasDiff(networkConfiguration.LearningRate * neuron.getSignalError() + networkConfiguration.Momentum * neuron.getBiasDiff());
+				neuron.setBiasWeight(neuron.getBiasWeight() + neuron.getBiasDiff());
+
+				foreach (Neuron inputNeuron in layers.getInputLayer().getNeurons())
+				{
+					neuron.setWeightDiff(inputNeuron, networkConfiguration.LearningRate * neuron.getSignalError() * inputNeuron.getOutput()
+						+ networkConfiguration.Momentum * neuron.getWeightDiff(inputNeuron));
+
+					neuron.setWeight(inputNeuron, neuron.getWeight(inputNeuron) + neuron.getWeightDiff(inputNeuron));
+				}
+			}
+
+			updateOverallError();
+		}
+
+		private void updateOverallError()
+		{
+			networkData.overallError = 0;
+
+			for(int i = 0; i < networkData.ExpectedOutputs.Count; i++)
+			{
+				for(int j = 0; j < networkData.ActualOutputs[i].Count; j++)
+				{
+					networkData.overallError += 0.5 * (networkData.ExpectedOutputs[i][j] - networkData.ActualOutputs[i][j] *
+						networkData.ExpectedOutputs[i][j] - networkData.ActualOutputs[i][j]);
+				}
+			}
 		}
 	}
 }

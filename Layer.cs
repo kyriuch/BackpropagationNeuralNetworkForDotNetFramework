@@ -27,14 +27,10 @@ namespace BackpropagationNeuralNetwork
 			}
 		}
 
-		internal ParallelLoopResult sumWeights()
-		{
-			return Parallel.ForEach(neuronsList, neuron => neuron.sumWeights());
-		}
+		internal List<Neuron> getNeurons() => neuronsList;
 
-		internal ParallelLoopResult activate()
-		{
-			return Parallel.ForEach(neuronsList, neuron => neuron.activate());
-		}
+		internal ParallelLoopResult sumWeights() => Parallel.ForEach(neuronsList, neuron => neuron.sumWeights());
+
+		internal ParallelLoopResult activate() => Parallel.ForEach(neuronsList, neuron => neuron.activate());
 	}
 }
